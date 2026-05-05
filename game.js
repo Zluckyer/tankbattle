@@ -317,6 +317,35 @@ class Game {
         document.addEventListener('keyup', (e) => {
             this.keys[e.key.toLowerCase()] = false;
         });
+
+        // 移动端虚拟按键
+        const touchButtons = document.querySelectorAll('[data-key]');
+        for (const btn of touchButtons) {
+            const key = btn.dataset.key;
+            const startHandler = (e) => {
+                e.preventDefault();
+                this.keys[key] = true;
+                if (key === 'p') {
+                    this.paused = !this.paused;
+                    this.keys[key] = false;
+                }
+            };
+            const endHandler = (e) => {
+                e.preventDefault();
+                this.keys[key] = false;
+            };
+            btn.addEventListener('touchstart', startHandler, { passive: false });
+            btn.addEventListener('touchend', endHandler, { passive: false });
+            btn.addEventListener('touchcancel', endHandler, { passive: false });
+            btn.addEventListener('mousedown', startHandler);
+            btn.addEventListener('mouseup', endHandler);
+            btn.addEventListener('mouseleave', endHandler);
+        }
+
+        // 防止页面滚动
+        document.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+        }, { passive: false });
     }
 
     generateMap() {

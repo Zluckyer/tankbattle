@@ -2,13 +2,17 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>坦克大战</title>
     <style>
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
+            touch-action: none;
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            user-select: none;
         }
         body {
             background: #1a1a1a;
@@ -18,38 +22,120 @@
             min-height: 100vh;
             font-family: 'Microsoft YaHei', sans-serif;
             color: #fff;
+            overflow: hidden;
         }
         .game-container {
             text-align: center;
+            width: 100%;
+            max-width: 850px;
+            padding: 10px;
         }
         h1 {
-            margin-bottom: 10px;
+            margin-bottom: 8px;
             color: #4CAF50;
             text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+            font-size: 24px;
         }
         .info {
             display: flex;
             justify-content: space-between;
-            padding: 10px 20px;
+            padding: 8px 16px;
             background: #333;
             border-radius: 8px 8px 0 0;
-            font-size: 18px;
+            font-size: 16px;
         }
         .info span {
             color: #FFD700;
+        }
+        .canvas-wrapper {
+            position: relative;
+            width: 100%;
+            max-width: 800px;
+            margin: 0 auto;
         }
         canvas {
             border: 3px solid #555;
             background: #000;
             display: block;
+            width: 100%;
+            height: auto;
+            image-rendering: pixelated;
         }
-        .controls {
-            margin-top: 15px;
+        .controls-pc {
+            margin-top: 10px;
             color: #aaa;
             font-size: 14px;
         }
-        .controls p {
-            margin: 5px 0;
+        .controls-mobile {
+            display: none;
+            margin-top: 10px;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 10px;
+            gap: 20px;
+        }
+        .dpad {
+            display: grid;
+            grid-template-columns: 60px 60px 60px;
+            grid-template-rows: 60px 60px 60px;
+            gap: 4px;
+        }
+        .dpad-btn {
+            background: rgba(255,255,255,0.15);
+            border: 2px solid rgba(255,255,255,0.3);
+            border-radius: 12px;
+            color: #fff;
+            font-size: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .dpad-btn:active {
+            background: rgba(255,255,255,0.35);
+        }
+        .dpad-empty {
+            pointer-events: none;
+        }
+        .action-btns {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            align-items: center;
+        }
+        .fire-btn {
+            width: 90px;
+            height: 90px;
+            border-radius: 50%;
+            background: rgba(244, 67, 54, 0.3);
+            border: 3px solid rgba(244, 67, 54, 0.6);
+            color: #fff;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .fire-btn:active {
+            background: rgba(244, 67, 54, 0.6);
+        }
+        .pause-btn {
+            width: 60px;
+            height: 36px;
+            border-radius: 18px;
+            background: rgba(255,255,255,0.15);
+            border: 2px solid rgba(255,255,255,0.3);
+            color: #fff;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+        .pause-btn:active {
+            background: rgba(255,255,255,0.35);
         }
         .btn {
             background: #4CAF50;
@@ -74,10 +160,21 @@
             padding: 40px;
             border-radius: 10px;
             border: 2px solid #4CAF50;
+            z-index: 10;
         }
         #gameOver h2 {
             color: #f44336;
             margin-bottom: 20px;
+        }
+
+        @media (max-width: 768px) {
+            h1 { font-size: 20px; }
+            .info { font-size: 14px; padding: 6px 12px; }
+            .controls-pc { display: none; }
+            .controls-mobile { display: flex; }
+            .dpad { grid-template-columns: 50px 50px 50px; grid-template-rows: 50px 50px 50px; }
+            .dpad-btn { font-size: 20px; }
+            .fire-btn { width: 80px; height: 80px; font-size: 16px; }
         }
     </style>
 </head>
@@ -89,15 +186,34 @@
             <div>得分: <span id="score">0</span></div>
             <div>关卡: <span id="level">1</span></div>
         </div>
-        <canvas id="gameCanvas" width="800" height="600"></canvas>
-        <div class="controls">
-            <p>WASD / 方向键 移动 | 空格键 射击 | P 暂停</p>
+        <div class="canvas-wrapper">
+            <canvas id="gameCanvas" width="800" height="600"></canvas>
+            <div id="gameOver">
+                <h2>游戏结束</h2>
+                <p>最终得分: <span id="finalScore">0</span></p>
+                <button class="btn" onclick="game.restart()">再来一局</button>
+            </div>
         </div>
-        <button class="btn" onclick="game.restart()">重新开始</button>
-        <div id="gameOver">
-            <h2>游戏结束</h2>
-            <p>最终得分: <span id="finalScore">0</span></p>
-            <button class="btn" onclick="game.restart()">再来一局</button>
+        <div class="controls-pc">
+            <p>WASD / 方向键 移动 | 空格键 射击 | P 暂停</p>
+            <button class="btn" onclick="game.restart()">重新开始</button>
+        </div>
+        <div class="controls-mobile">
+            <div class="dpad">
+                <div class="dpad-empty"></div>
+                <div class="dpad-btn" data-key="arrowup">&#9650;</div>
+                <div class="dpad-empty"></div>
+                <div class="dpad-btn" data-key="arrowleft">&#9664;</div>
+                <div class="dpad-empty"></div>
+                <div class="dpad-btn" data-key="arrowright">&#9654;</div>
+                <div class="dpad-empty"></div>
+                <div class="dpad-btn" data-key="arrowdown">&#9660;</div>
+                <div class="dpad-empty"></div>
+            </div>
+            <div class="action-btns">
+                <div class="pause-btn" data-key="p">暂停</div>
+                <div class="fire-btn" data-key=" ">射击</div>
+            </div>
         </div>
     </div>
     <script src="game.js"></script>
